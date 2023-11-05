@@ -1,0 +1,16 @@
+<launch>
+    <node name="robot_0" pkg="mrs_project_simulation" type="boid_node.py" />
+    <node name="robot_1" pkg="mrs_project_simulation" type="boid_node.py" />
+    <node name="robot_2" pkg="mrs_project_simulation" type="boid_node.py" />
+    <node name="robot_3" pkg="mrs_project_simulation" type="boid_node.py" />
+    <node name="robot_4" pkg="mrs_project_simulation" type="boid_node.py" />
+    <node name="robot_5" pkg="mrs_project_simulation" type="boid_node.py" />
+    <node name="robot_6" pkg="mrs_project_simulation" type="boid_node.py" />
+    <node name="robot_7" pkg="mrs_project_simulation" type="boid_node.py" />
+    <node name="robot_8" pkg="mrs_project_simulation" type="boid_node.py" />
+    <node name="robot_9" pkg="mrs_project_simulation" type="boid_node.py" />
+    
+    <node name="calc_neighbours_node" pkg="mrs_project_simulation" type="calc_neighbours_node.py" />
+    
+    <node name="stage_node" pkg="sphero_stage" type="start.py" />
+</launch>
