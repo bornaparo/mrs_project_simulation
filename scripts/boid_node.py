@@ -18,7 +18,7 @@ class BoidNode():
 
 		self.separation_factor = 1.2 #TODO: promjenit
 		self.alignment_factor = 1 #TODO: promjenit
-		self.cohesion_factor = 1 #TODO: promjenit
+		self.cohesion_factor = 10/2 #adjust if needed
 		self.mass = 1
 
 		self.neighbours_odoms = []
@@ -47,9 +47,22 @@ class BoidNode():
 		return np.array([1,1]) * 0 #promjenit
 
 	def calc_cohesion(self) -> np.ndarray:
-		#TODO: calculate cohesion force with respect to neighbours
-		#vraca np.ndarray, shape: (2,)
-		return np.array([1,1]) * 0 #promjenit
+		"""
+			Calculates cohesion force with respect to neighbours
+
+			Returns:
+				np.ndarray of shape (2,): cohesion force
+		"""
+		if len(self.neighbours_odoms) == 0: #if there isn't any neighbour
+			return np.zeros([2,])
+		
+		#find centroid of neighbours
+		centroid = np.array([[neighbour.pose.pose.position.x, neighbour.pose.pose.position.y] for neighbour in self.neighbours_odoms])
+		centroid = np.mean(centroid, axis=0)
+
+		#calculate force with respect to centroid
+		F = np.array([centroid[0] - self.x, centroid[1] - self.y])
+		return F #shape: (2,)
 	
 
 	def run(self):
@@ -73,7 +86,8 @@ class BoidNode():
 			pass
 
 if __name__ == '__main__':
-	rospy.init_node('boid_node')
+	# rospy.init_node('boid_node')
+	rospy.init_node('robot_0') #debug
 	try:
 		boid_node = BoidNode()
 		boid_node.run()
