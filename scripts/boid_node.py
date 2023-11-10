@@ -5,7 +5,7 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from mrs_project_simulation.msg import Neighbours
 import numpy as np
-
+# komentar
 class BoidNode():
 	def __init__(self):
 		self.PUB_RATE = 10
