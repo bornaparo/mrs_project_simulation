@@ -16,6 +16,9 @@ class BoidNode():
 		self.vel_x = 0 
 		self.vel_y = 0 
 
+		goal_positions = np.array([(1.0,2.0),(2.0,3.0),(2.0,4.5),(4.6,5.0),(5.5,8.0)])  #pozicije kroz koje svaki robot mora proci
+		self.goal_positions = np.tile(goal_positions, (10,1))	# array pozicija za svakog od 10 robota
+
 		self.separation_factor = 1.2 #TODO: promjenit
 		self.alignment_factor = 1 #TODO: promjenit
 		self.cohesion_factor = 10/2 #adjust if needed
@@ -64,7 +67,32 @@ class BoidNode():
 		F = np.array([centroid[0] - self.x, centroid[1] - self.y])
 		return F #shape: (2,)
 	
+	def calc_migration_force(curr_point, goal_point):
 
+		"Calculates the force needed for moving to destination point"
+		return goal_point - curr_point
+	
+	def navigation_to_point(self):
+		
+		navigation_forces = []
+
+		for position, neighbour in enumerate(self.neighbours_odoms):
+			
+			neighbour_pos_x = neighbour.pose.pose.position.x
+			neighbour_pos_y = neighbour.pose.pose.position.y
+
+			navigation_forces.append(self.calc_migration_force(np.array([neighbour_pos_x, neighbour_pos_y]),
+													   np.array([self.goal_positions[position][0], self.goal_positions[position][1]])))
+
+			#if np.linalg.norm([neighbour_pos_x - self.goal_positions[position][0], neighbour_pos_y - self.goal_positions[position][1]]) < 0.5:
+			if np.sqrt((neighbour_pos_x - self.goal_positions[position][0])**2 + (neighbour_pos_y - self.goal_positions[position][1]**2)) < 0.5:
+				if len(self.goal_positions[position]) > 0:
+					self.goal_positions[position].pop(0)
+					print("Moving on to the next position!")
+				
+				elif len(self.goal_positions[position]) == 0:
+					print(f"Robot number {position+1} has reached the goal.")
+			
 	def run(self):
 		while not rospy.is_shutdown():
 			#s obzirom na susjede, izracunat separation, alignment, cohesion sile i to pretvorit u brzine onda (integracija), F=m*a, m=1, F=a
