@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
+import math
 import rospy
 from std_msgs.msg import String
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, Point32
+from sensor_msgs.msg import PointCloud
 from nav_msgs.msg import Odometry
 from mrs_project_simulation.msg import Neighbours
 import numpy as np
@@ -25,6 +27,7 @@ class BoidNode():
 		self.publisher_vel = rospy.Publisher(f"{rospy.get_name()}/cmd_vel", Twist, queue_size=self.PUB_RATE) #ovo uzima stage i pomice robota
 		rospy.Subscriber(f"{rospy.get_name()}/odom", Odometry, self.odom_callback, queue_size=1) #stage publisha na ovaj topic
 		rospy.Subscriber(f"{rospy.get_name()}/neighbours", Neighbours, self.neighbours_callback, queue_size=1) #tu calc_neighbours_node publisha odom susjeda od ovog node-a
+		rospy.Subscriber(f"{rospy.get_name()}/obstacles", PointCloud, self.obstacle_callback, queue_size=1) #tu calc_neighbours_node publisha odom susjeda od ovog node-a
 		self.rate = rospy.Rate(self.PUB_RATE) #frekvencija kojom publisha poruke, nece affectat to da missas poruke koje dobivas, ovo utjece samo na publishanje
 
 	def odom_callback(self, odom_msg):
@@ -35,6 +38,9 @@ class BoidNode():
 
 	def neighbours_callback(self, neighbours: Neighbours):
 		self.neighbours_odoms = neighbours.neighbours_odoms #Neighbours je lista Odometry poruka
+
+	def map_callback(self, obstacles: PointCloud):
+		self.obstacles = obstacles
 
 	def calc_separation(self) -> np.ndarray:
 		#TODO: calculate separation force with respect to neighbours
@@ -64,6 +70,50 @@ class BoidNode():
 		F = np.array([centroid[0] - self.x, centroid[1] - self.y])
 		return F #shape: (2,)
 	
+	def calc_avoidance(self) -> np.ndarray:
+		"""
+			Calculates obstacle avoidance force
+
+			Returns:
+				np.ndarray of shape(2,): avoidance force
+		"""
+		safety_direction = np.zeros([2,])
+		count = 0
+
+        # Calculate repulsive force for each obstacle in sight.
+		for obst in self.obstacles:
+			obst_position = obst
+			d = obst_position.norm()
+			obst_position *= -1        # Make vector point away from obstacle.
+			obst_position.normalize()  # Normalize to get only direction.
+            # Additionally, if obstacle is very close...
+			if d < self.avoid_radius:
+                # Scale lineary so that there is no force when agent is on the
+                # edge of minimum avoiding distance and force is maximum if the
+                # distance from the obstacle is zero.
+				safety_scaling = -2 * self.max_force / self.avoid_radius * d + 2 * self.max_force
+				safety_direction += obst_position * safety_scaling
+			count += 1
+
+            # For all other obstacles: scale with inverse square law.
+			# obst_position = obst_position / (self.avoid_scaling * d**2)
+			# main_direction += obst_position
+			#
+		if self.obstacles:
+            # Calculate the approach vector.
+			diff = (self.old_heading - main_direction.arg() + 180) % 360
+			if diff >= 180:
+				diff -= 360
+            # We mustn't allow scaling to be negative.
+			side_scaling = max(math.cos(math.radians(diff)), 0)
+            # Divicde by number of obstacles to get average.
+			main_direction = main_direction / len(self.obstacles) * side_scaling
+			safety_direction /= count
+			
+		rospy.logdebug("avoids*:      %s", main_direction)
+        # Final force is sum of two componets.
+        # Force is not limited so this rule has highest priority.
+		return main_direction + safety_direction
 
 	def run(self):
 		while not rospy.is_shutdown():
