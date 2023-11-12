@@ -3,6 +3,7 @@
 import rospy
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist, Point
+from sensor_msgs.msg import PointCloud
 from nav_msgs.msg import Odometry
 from mrs_project_simulation.msg import Neighbours
 import numpy as np
@@ -26,13 +27,16 @@ class BoidNode():
 		self.separation_factor = 1.5 #TODO: promjenit
 		self.alignment_factor = 1.2 #TODO: promjenit
 		self.cohesion_factor = 10*2 #adjust if needed #10/2*2*2
+		self.avoidance_factor = 2.5 #TODO: promjenit
 		self.mass = 1
 
 		self.neighbours_odoms = []
+		self.obstacles = PointCloud()
 		self.publisher_vel = rospy.Publisher(f"{rospy.get_name()}/cmd_vel", Twist, queue_size=self.PUB_RATE) #ovo uzima stage i pomice robota
 		rospy.Subscriber(f"{rospy.get_name()}/odom", Odometry, self.odom_callback, queue_size=1) #stage publisha na ovaj topic
 		rospy.Subscriber(f"{rospy.get_name()}/neighbours", Neighbours, self.neighbours_callback, queue_size=1) #tu calc_neighbours_node publisha odom susjeda od ovog node-a
 		rospy.Subscriber(f"{rospy.get_name()}/migration_force", Point, self.migration_force_callback, queue_size=1) #tu dobiva migration force
+		rospy.Subscriber(f"{rospy.get_name()}/obstacles", PointCloud, self.map_callback, queue_size=1)
 		self.rate = rospy.Rate(self.PUB_RATE) #frekvencija kojom publisha poruke, nece affectat to da missas poruke koje dobivas, ovo utjece samo na publishanje
 
 	def migration_force_callback(self, mig_force_msg):
@@ -49,6 +53,9 @@ class BoidNode():
 	def neighbours_callback(self, neighbours: Neighbours):
 		self.neighbours_odoms = neighbours.neighbours_odoms #Neighbours je lista Odometry poruka
 		#print(self.neighbours_odoms)
+
+	def map_callback(self, obstacles: PointCloud):
+		self.obstacles = obstacles
 
 	def calc_separation(self) -> np.ndarray:
 		"""
@@ -116,6 +123,32 @@ class BoidNode():
 		#print(f"force borna = {F}")
 		return F #shape: (2,)
 	
+	def calc_avoidance(self) -> np.ndarray:
+		"""
+			Calculates separation force with respect to obstacles
+
+			Returns:
+				np.ndarray of shape (2,): separation force
+		"""
+		# Init - separation fore
+		force = np.zeros([2,])
+  
+		if len(self.obstacles.points) == 0: #if there isn't any obstacles
+			return np.zeros([2,])
+
+		# Calculate cordinate difference between current boid and obstacles
+		cordinate_difference = np.array([[self.x - obstacle.x, self.y - obstacle.y] for obstacle in self.obstacles.points])
+		
+		# Euclidean distance between two points 
+		euclidean_distances = np.array([[math.dist([self.x,self.y],[obstacle.x, obstacle.y])] for obstacle in self.obstacles.points])
+		
+    
+		for i,distance in enumerate(euclidean_distances):
+				# Calculate separation forces according to obstacles positions(distances) and sum it up 
+				force +=  cordinate_difference[i] / abs(distance**3)
+
+
+		return force / len(self.obstacles.points) #shape: (2,)
 
 	def run(self):
 		while not rospy.is_shutdown():
@@ -123,9 +156,10 @@ class BoidNode():
 			separation = self.calc_separation() * self.separation_factor
 			alignment = self.calc_alignment() * self.alignment_factor
 			cohesion = self.calc_cohesion() * self.cohesion_factor
+			avoidance = self.calc_avoidance() * self.avoidance_factor
 
-			force = separation + alignment + cohesion + self.migration_force #ogranicit mozda jos da ne bude veci od nekog max forcea ako bude potrebno ali cini mi se da ne treba
-			print(f"force_sum = {force}")
+			force = separation + alignment + cohesion + self.migration_force + avoidance #ogranicit mozda jos da ne bude veci od nekog max forcea ako bude potrebno ali cini mi se da ne treba
+			#print(f"force_sum = {avoidance}")
 			a = force / self.mass
 
 			velocity = a * (1/self.PUB_RATE) #T = 1/f

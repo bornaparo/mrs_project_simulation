@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import rospy
-from geometry_msgs.msg import Twist
-from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Twist, Point
+from sensor_msgs.msg import PointCloud
+from nav_msgs.msg import Odometry, OccupancyGrid
 from mrs_project_simulation.msg import Neighbours
 import numpy as np
 from typing import List
@@ -24,8 +25,11 @@ class CalcNeighboursNode():
         self.theta2 = (self.theta2 + np.pi) % (2 * np.pi) - np.pi #iz [0,2pi] u [-pi,pi] jer arctan2 vraca vrijednost u intervalu [-pi,pi]
 
         self.publisher_neighbours = [rospy.Publisher(f"/robot_{i}/neighbours", Neighbours, queue_size=PUB_RATE) for i in range(10)]
+        self.publisher_obstacles = [rospy.Publisher(f"/robot_{i}/obstacles", PointCloud, queue_size=PUB_RATE) for i in range(10)]
         self.odoms: List[Odometry] = [None] * 10 #"prazna" lista od 10 elem
+        self.obstacles = PointCloud()
 
+        rospy.Subscriber("/map", OccupancyGrid, self.map_callback, queue_size=1) #tu calc_neighbours_node publisha odom susjeda od ovog node-a
         rospy.Subscriber("/robot_0/odom", Odometry, self.robot0_odom_callback, queue_size=1) 
         rospy.Subscriber("/robot_1/odom", Odometry, self.robot1_odom_callback, queue_size=1) 
         rospy.Subscriber("/robot_2/odom", Odometry, self.robot2_odom_callback, queue_size=1)
@@ -69,6 +73,25 @@ class CalcNeighboursNode():
     def robot9_odom_callback(self, robot_odom: Odometry):
         self.odoms[9] = robot_odom
 
+    def map_callback(self, grid: OccupancyGrid):
+        width = grid.info.width
+        height = grid.info.height
+        resolution = grid.info.resolution
+        origin_x = grid.info.origin.position.x
+        origin_y = grid.info.origin.position.y
+
+        points = PointCloud()
+        for y in range(height):
+            for x in range(width):
+                index = x + y * width
+                if grid.data[index] > 0:
+                    point = Point()
+                    point.x = origin_x + x * resolution
+                    point.y = origin_y + y * resolution
+                    points.points.append(point)
+
+        self.obstacles = points
+
     def run(self):
         while not rospy.is_shutdown():
             neighbours_dict = {
@@ -103,6 +126,18 @@ class CalcNeighboursNode():
                         "neighbours_odom": [],
                     },
                 }
+            nearest_obs = {
+                    "robot_0": PointCloud(),
+                    "robot_1": PointCloud(),
+                    "robot_2": PointCloud(),
+                    "robot_3": PointCloud(),
+                    "robot_4": PointCloud(),
+                    "robot_5": PointCloud(),
+                    "robot_6": PointCloud(),
+                    "robot_7": PointCloud(),
+                    "robot_8": PointCloud(),
+                    "robot_9": PointCloud(),
+                }
             
             if None not in self.odoms: #ako je popunjena lista sa ne None vrijednostima tj popunjena je odom podacima
                 for i in range(len(self.odoms)):
@@ -121,12 +156,25 @@ class CalcNeighboursNode():
                             if not (angle > self.theta1 and angle < self.theta2): #ako nije u tom rasponu kuteva naci da je unutar FoV
                                 neighbours_dict[f"robot_{i}"]["neighbours_odom"].append(self.odoms[j])
 
+                    new_array = PointCloud()
+                    for obst in self.obstacles.points:
+                        d = np.sqrt((obst.x - curr_x)**2 + (obst.y - curr_y)**2)
+                        if d <= self.r: #unutar kruga
+                            angle = np.arctan2(obst.y - curr_y, obst.x - curr_x) #u intervalu [-pi, pi]
+                            if not (angle > self.theta1 and angle < self.theta2): #ako nije u tom rasponu kuteva naci da je unutar FoV
+                                new_array.points.append(obst)
+
+                    nearest_obs[f"robot_{i}"] = new_array
+
 
             #publish neighours
             for i, pub in enumerate(self.publisher_neighbours):
                 msg = Neighbours()
                 msg.neighbours_odoms = neighbours_dict[f"robot_{i}"]["neighbours_odom"]
                 pub.publish(msg)
+
+            for i, pub in enumerate(self.publisher_obstacles):
+                pub.publish(nearest_obs[f"robot_{i}"])
 
             self.rate.sleep()
             pass
