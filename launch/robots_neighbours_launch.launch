@@ -11,6 +11,5 @@
     <node name="robot_9" pkg="mrs_project_simulation" type="boid_node.py" output="screen"/>
     
     <node name="calc_neighbours_node" pkg="mrs_project_simulation" type="calc_neighbours_node.py" />
-    
-    <node name="stage_node" pkg="sphero_stage" type="start.py" />
+   
 </launch>
