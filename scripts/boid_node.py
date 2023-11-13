@@ -93,7 +93,7 @@ class BoidNode():
 		mean_velocity = np.array([[neighbour.twist.twist.linear.x, neighbour.twist.twist.linear.y] for neighbour in self.neighbours_odoms])
 		mean_velocity = np.mean(mean_velocity, axis=0)
 
-		F = np.array([mean_velocity[0] - self.vel_x, mean_velocity[1] * self.vel_y])
+		F = np.array([mean_velocity[0] - self.vel_x, mean_velocity[1] - self.vel_y])
 
 		return F 
 
