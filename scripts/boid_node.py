@@ -59,11 +59,11 @@ class BoidNode():
 		for i,distance in enumerate(distances):
 			#print(f"distance = {distance}")
 			if distance < self.radius:
-				print(f"{cordinate_difference[i]}")
-				print(f"{distance}")
-				force =  cordinate_difference[i] / (distance**2)
+				#print(f"{cordinate_difference[i]}")
+				#print(f"{distance}")
+				force +=  cordinate_difference[i] / (distance**2)
 
-				print(f"force = {force}")
+				#print(f"force = {force}")
 			
 		#print("(x,y) : " + str([self.x,self.y]))
 		#for neighour in self.neighbours_odoms:
