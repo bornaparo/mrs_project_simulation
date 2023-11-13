@@ -20,11 +20,11 @@ class BoidNode():
 		self.vel_y = 0 
 
 		#radius za udaljenost boid-a
-		self.radius = 0.4
+		# self.radius = 0.4
   
 		self.separation_factor = 1.5 #TODO: promjenit
 		self.alignment_factor = 1 #TODO: promjenit
-		self.cohesion_factor = 10/2 #adjust if needed
+		self.cohesion_factor = 10*2 #adjust if needed #10/2*2*2
 		self.mass = 1
 
 		self.neighbours_odoms = []
@@ -63,9 +63,11 @@ class BoidNode():
 		# Euclidean distance between two points 
 		euclidean_distances = np.array([[math.dist([self.x,self.y],[neighbour.pose.pose.position.x, neighbour.pose.pose.position.y])] for neighbour in self.neighbours_odoms])
 		
+    
 		for i,distance in enumerate(euclidean_distances):
 				# Calculate separation forces according to neighbours positions(distances) and sum it up 
 				force +=  cordinate_difference[i] / (distance**2)
+
 
 		return force #shape: (2,)
 
