@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
+
 import rospy
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from mrs_project_simulation.msg import Neighbours
 import numpy as np
+import math
 # komentar
 class BoidNode():
+    
 	def __init__(self):
 		self.PUB_RATE = 10
 
@@ -16,9 +19,12 @@ class BoidNode():
 		self.vel_x = 0 
 		self.vel_y = 0 
 
-		self.separation_factor = 1.2 #TODO: promjenit
-		self.alignment_factor = 1 #TODO: promjenit
-		self.cohesion_factor = 10/2 #adjust if needed
+		#radius za udaljenost boid-a
+		# self.radius = 0.4
+  
+		self.separation_factor = 1.5 #TODO: promjenit
+		self.alignment_factor = 1.2 #TODO: promjenit
+		self.cohesion_factor = 10*2 #adjust if needed #10/2*2*2
 		self.mass = 1
 
 		self.neighbours_odoms = []
@@ -32,19 +38,59 @@ class BoidNode():
 		self.y = odom_msg.pose.pose.position.y
 		self.vel_x = odom_msg.twist.twist.linear.x
 		self.vel_y = odom_msg.twist.twist.linear.y
+		#self.vel_z = odom_msg.twist.twist.angular.z
+		#print("x : " +str(self.x) +"\ny : " + str(self.y) )
 
 	def neighbours_callback(self, neighbours: Neighbours):
 		self.neighbours_odoms = neighbours.neighbours_odoms #Neighbours je lista Odometry poruka
+		#print(self.neighbours_odoms)
 
 	def calc_separation(self) -> np.ndarray:
-		#TODO: calculate separation force with respect to neighbours
-		#vraca np.ndarray, shape: (2,)
-		return np.array([1,1]) * 0 #promjenit
+		"""
+			Calculates separation force with respect to neighbours
+
+			Returns:
+				np.ndarray of shape (2,): separation force
+		"""
+		# Init - separation fore
+		force = np.zeros([2,])
+  
+		if len(self.neighbours_odoms) == 0: #if there isn't any neighbour
+			return np.zeros([2,])
+
+		# Calculate cordinate difference between current boid and neighbours
+		cordinate_difference = np.array([[self.x - neighbour.pose.pose.position.x, self.y - neighbour.pose.pose.position.y] for neighbour in self.neighbours_odoms])
+		
+		# Euclidean distance between two points 
+		euclidean_distances = np.array([[math.dist([self.x,self.y],[neighbour.pose.pose.position.x, neighbour.pose.pose.position.y])] for neighbour in self.neighbours_odoms])
+		
+    
+		for i,distance in enumerate(euclidean_distances):
+				# Calculate separation forces according to neighbours positions(distances) and sum it up 
+				force +=  cordinate_difference[i] / (distance**2)
+
+
+		return force #shape: (2,)
+
+
+  
 
 	def calc_alignment(self) -> np.ndarray:
-		#TODO: calculate alignment force with respect to neighbours
-		#vraca np.ndarray, shape: (2,)
-		return np.array([1,1]) * 0 #promjenit
+		"""
+			Calculates alignment force with respect to neighbours
+
+			Returns:
+				np.ndarray of shape (2,): alignment force
+		"""
+		if len(self.neighbours_odoms) == 0: #if there isn't any neighbour
+			return np.zeros([2,])
+		
+		mean_velocity = np.array([[neighbour.twist.twist.linear.x, neighbour.twist.twist.linear.y] for neighbour in self.neighbours_odoms])
+		mean_velocity = np.mean(mean_velocity, axis=0)
+
+		F = np.array([mean_velocity[0] - self.vel_x, mean_velocity[1] * self.vel_y])
+
+		return F 
 
 	def calc_cohesion(self) -> np.ndarray:
 		"""
@@ -62,6 +108,7 @@ class BoidNode():
 
 		#calculate force with respect to centroid
 		F = np.array([centroid[0] - self.x, centroid[1] - self.y])
+		#print(f"force borna = {F}")
 		return F #shape: (2,)
 	
 
@@ -73,6 +120,7 @@ class BoidNode():
 			cohesion = self.calc_cohesion() * self.cohesion_factor
 
 			force = separation + alignment + cohesion #ogranicit mozda jos da ne bude veci od nekog max forcea
+			print(f"force_sum = {force}")
 			a = force / self.mass
 
 			velocity = a * (1/self.PUB_RATE) #T = 1/f
