@@ -20,11 +20,11 @@ class BoidNode():
 		self.vel_y = 0 
 
 		#radius za udaljenost boid-a
-		self.radius = 0.4
+		# self.radius = 0.4
   
 		self.separation_factor = 1.5 #TODO: promjenit
 		self.alignment_factor = 1 #TODO: promjenit
-		self.cohesion_factor = 10/2 #adjust if needed
+		self.cohesion_factor = 10*2 #adjust if needed #10/2*2*2
 		self.mass = 1
 
 		self.neighbours_odoms = []
@@ -58,10 +58,10 @@ class BoidNode():
 		
 		for i,distance in enumerate(distances):
 			#print(f"distance = {distance}")
-			if distance < self.radius:
+			# if distance < self.radius:
 				#print(f"{cordinate_difference[i]}")
 				#print(f"{distance}")
-				force +=  cordinate_difference[i] / (distance**2)
+			force +=  cordinate_difference[i] / (distance**2)
 
 				#print(f"force = {force}")
 			
