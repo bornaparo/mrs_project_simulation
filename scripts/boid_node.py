@@ -45,35 +45,29 @@ class BoidNode():
 		#print(self.neighbours_odoms)
 
 	def calc_separation(self) -> np.ndarray:
-  
-		#force_arr = np.zeros(((9,2)))
+		"""
+			Calculates separation force with respect to neighbours
+
+			Returns:
+				np.ndarray of shape (2,): separation force
+		"""
+		# Init - separation fore
 		force = np.zeros([2,])
   
 		if len(self.neighbours_odoms) == 0: #if there isn't any neighbour
 			return np.zeros([2,])
 
+		# Calculate cordinate difference between current boid and neighbours
 		cordinate_difference = np.array([[self.x - neighbour.pose.pose.position.x, self.y - neighbour.pose.pose.position.y] for neighbour in self.neighbours_odoms])
 		
-		distances = np.array([[math.dist([self.x,self.y],[neighbour.pose.pose.position.x, neighbour.pose.pose.position.y])] for neighbour in self.neighbours_odoms])
+		# Euclidean distance between two points 
+		euclidean_distances = np.array([[math.dist([self.x,self.y],[neighbour.pose.pose.position.x, neighbour.pose.pose.position.y])] for neighbour in self.neighbours_odoms])
 		
-		for i,distance in enumerate(distances):
-			#print(f"distance = {distance}")
-			if distance < self.radius:
-				#print(f"{cordinate_difference[i]}")
-				#print(f"{distance}")
+		for i,distance in enumerate(euclidean_distances):
+				# Calculate separation forces according to neighbours positions(distances) and sum it up 
 				force +=  cordinate_difference[i] / (distance**2)
 
-				#print(f"force = {force}")
-			
-		#print("(x,y) : " + str([self.x,self.y]))
-		#for neighour in self.neighbours_odoms:
-			#print("neighbour positions : \n" + str(neighour.pose.pose.position))
-		#print("cordinate_difference"+ str(cordinate_difference))
-		#print("distance : \n" + str(distance))
-
-		#print(f"force = {force}")
-  
-		return force
+		return force #shape: (2,)
 
 
   
