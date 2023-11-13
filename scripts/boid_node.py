@@ -2,7 +2,7 @@
 import math
 import rospy
 from std_msgs.msg import String
-from geometry_msgs.msg import Twist, Point32
+from geometry_msgs.msg import Twist, Point
 from sensor_msgs.msg import PointCloud
 from nav_msgs.msg import Odometry
 from mrs_project_simulation.msg import Neighbours
@@ -18,6 +18,10 @@ class BoidNode():
 		self.vel_x = 0 
 		self.vel_y = 0 
 
+		#radius za udaljenost boid-a
+		# self.radius = 0.4
+		self.migration_force = np.zeros((2,))
+
 		self.separation_factor = 1.2 #TODO: promjenit
 		self.alignment_factor = 1 #TODO: promjenit
 		self.cohesion_factor = 10/2 #adjust if needed
@@ -28,29 +32,70 @@ class BoidNode():
 		rospy.Subscriber(f"{rospy.get_name()}/odom", Odometry, self.odom_callback, queue_size=1) #stage publisha na ovaj topic
 		rospy.Subscriber(f"{rospy.get_name()}/neighbours", Neighbours, self.neighbours_callback, queue_size=1) #tu calc_neighbours_node publisha odom susjeda od ovog node-a
 		rospy.Subscriber(f"{rospy.get_name()}/obstacles", PointCloud, self.obstacle_callback, queue_size=1) #tu calc_neighbours_node publisha odom susjeda od ovog node-a
+		rospy.Subscriber(f"{rospy.get_name()}/migration_force", Point, self.migration_force_callback, queue_size=1) #tu dobiva migration force		rospy.Subscriber(f"{rospy.get_name()}/obstacles", PointCloud, self.obstacle_callback, queue_size=1) #tu calc_neighbours_node publisha odom susjeda od ovog node-a
 		self.rate = rospy.Rate(self.PUB_RATE) #frekvencija kojom publisha poruke, nece affectat to da missas poruke koje dobivas, ovo utjece samo na publishanje
+
+	def migration_force_callback(self, mig_force_msg):
+		self.migration_force = np.array([mig_force_msg.x, mig_force_msg.y])
 
 	def odom_callback(self, odom_msg):
 		self.x = odom_msg.pose.pose.position.x
 		self.y = odom_msg.pose.pose.position.y
 		self.vel_x = odom_msg.twist.twist.linear.x
 		self.vel_y = odom_msg.twist.twist.linear.y
+		#self.vel_z = odom_msg.twist.twist.angular.z
+		#print("x : " +str(self.x) +"\ny : " + str(self.y) )
 
 	def neighbours_callback(self, neighbours: Neighbours):
 		self.neighbours_odoms = neighbours.neighbours_odoms #Neighbours je lista Odometry poruka
+		#print(self.neighbours_odoms)
 
 	def map_callback(self, obstacles: PointCloud):
 		self.obstacles = obstacles
 
 	def calc_separation(self) -> np.ndarray:
-		#TODO: calculate separation force with respect to neighbours
-		#vraca np.ndarray, shape: (2,)
-		return np.array([1,1]) * 0 #promjenit
+		"""
+			Calculates separation force with respect to neighbours
+
+			Returns:
+				np.ndarray of shape (2,): separation force
+		"""
+		# Init - separation fore
+		force = np.zeros([2,])
+  
+		if len(self.neighbours_odoms) == 0: #if there isn't any neighbour
+			return np.zeros([2,])
+
+		# Calculate cordinate difference between current boid and neighbours
+		cordinate_difference = np.array([[self.x - neighbour.pose.pose.position.x, self.y - neighbour.pose.pose.position.y] for neighbour in self.neighbours_odoms])
+		
+		# Euclidean distance between two points 
+		euclidean_distances = np.array([[math.dist([self.x,self.y],[neighbour.pose.pose.position.x, neighbour.pose.pose.position.y])] for neighbour in self.neighbours_odoms])
+		
+    
+		for i,distance in enumerate(euclidean_distances):
+				# Calculate separation forces according to neighbours positions(distances) and sum it up 
+				force +=  cordinate_difference[i] / (distance**2)
+
+
+		return force #shape: (2,)
 
 	def calc_alignment(self) -> np.ndarray:
-		#TODO: calculate alignment force with respect to neighbours
-		#vraca np.ndarray, shape: (2,)
-		return np.array([1,1]) * 0 #promjenit
+		"""
+			Calculates alignment force with respect to neighbours
+
+			Returns:
+				np.ndarray of shape (2,): alignment force
+		"""
+		if len(self.neighbours_odoms) == 0: #if there isn't any neighbour
+			return np.zeros([2,])
+		
+		mean_velocity = np.array([[neighbour.twist.twist.linear.x, neighbour.twist.twist.linear.y] for neighbour in self.neighbours_odoms])
+		mean_velocity = np.mean(mean_velocity, axis=0)
+
+		F = np.array([mean_velocity[0] - self.vel_x, mean_velocity[1] - self.vel_y])
+
+		return F 
 
 	def calc_cohesion(self) -> np.ndarray:
 		"""
@@ -122,7 +167,7 @@ class BoidNode():
 			alignment = self.calc_alignment() * self.alignment_factor
 			cohesion = self.calc_cohesion() * self.cohesion_factor
 
-			force = separation + alignment + cohesion #ogranicit mozda jos da ne bude veci od nekog max forcea
+			force = separation + alignment + cohesion + self.migration_force #ogranicit mozda jos da ne bude veci od nekog max forcea
 			a = force / self.mass
 
 			velocity = a * (1/self.PUB_RATE) #T = 1/f
