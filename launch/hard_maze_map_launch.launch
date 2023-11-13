@@ -1,0 +1,11 @@
+<launch>
+    <include file="$(find mrs_project_simulation)/launch/robots_neighbours_launch.launch" />
+
+    <node name="migration_force_node" pkg="mrs_project_simulation" type="migration_force_node.py">
+        <param name="path_kind" type="string" value="hard_maze"/>
+    </node>
+    
+    <node name="stage_node" pkg="sphero_stage" type="start.py">
+        <param name="param_file" type="string" value="launch_params_hard_maze"/>
+    </node>
+</launch>

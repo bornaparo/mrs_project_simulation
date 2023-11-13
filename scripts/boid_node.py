@@ -2,7 +2,7 @@
 
 import rospy
 from std_msgs.msg import String
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, Point
 from nav_msgs.msg import Odometry
 from mrs_project_simulation.msg import Neighbours
 import numpy as np
@@ -21,6 +21,7 @@ class BoidNode():
 
 		#radius za udaljenost boid-a
 		# self.radius = 0.4
+		self.migration_force = np.zeros((2,))
   
 		self.separation_factor = 1.5 #TODO: promjenit
 		self.alignment_factor = 1 #TODO: promjenit
@@ -31,7 +32,11 @@ class BoidNode():
 		self.publisher_vel = rospy.Publisher(f"{rospy.get_name()}/cmd_vel", Twist, queue_size=self.PUB_RATE) #ovo uzima stage i pomice robota
 		rospy.Subscriber(f"{rospy.get_name()}/odom", Odometry, self.odom_callback, queue_size=1) #stage publisha na ovaj topic
 		rospy.Subscriber(f"{rospy.get_name()}/neighbours", Neighbours, self.neighbours_callback, queue_size=1) #tu calc_neighbours_node publisha odom susjeda od ovog node-a
+		rospy.Subscriber(f"{rospy.get_name()}/migration_force", Point, self.migration_force_callback, queue_size=1) #tu dobiva migration force
 		self.rate = rospy.Rate(self.PUB_RATE) #frekvencija kojom publisha poruke, nece affectat to da missas poruke koje dobivas, ovo utjece samo na publishanje
+
+	def migration_force_callback(self, mig_force_msg):
+		self.migration_force = np.array([mig_force_msg.x, mig_force_msg.y])
 
 	def odom_callback(self, odom_msg):
 		self.x = odom_msg.pose.pose.position.x
@@ -106,7 +111,7 @@ class BoidNode():
 			alignment = self.calc_alignment() * self.alignment_factor
 			cohesion = self.calc_cohesion() * self.cohesion_factor
 
-			force = separation + alignment + cohesion #ogranicit mozda jos da ne bude veci od nekog max forcea
+			force = separation + alignment + cohesion + self.migration_force #ogranicit mozda jos da ne bude veci od nekog max forcea ako bude potrebno ali cini mi se da ne treba
 			print(f"force_sum = {force}")
 			a = force / self.mass
 
