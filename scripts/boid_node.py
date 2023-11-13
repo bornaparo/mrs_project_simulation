@@ -7,7 +7,7 @@ from nav_msgs.msg import Odometry
 from mrs_project_simulation.msg import Neighbours
 import numpy as np
 import math
-
+# komentar
 class BoidNode():
     
 	def __init__(self):
@@ -23,7 +23,7 @@ class BoidNode():
 		# self.radius = 0.4
   
 		self.separation_factor = 1.5 #TODO: promjenit
-		self.alignment_factor = 1 #TODO: promjenit
+		self.alignment_factor = 1.2 #TODO: promjenit
 		self.cohesion_factor = 10*2 #adjust if needed #10/2*2*2
 		self.mass = 1
 
@@ -38,6 +38,7 @@ class BoidNode():
 		self.y = odom_msg.pose.pose.position.y
 		self.vel_x = odom_msg.twist.twist.linear.x
 		self.vel_y = odom_msg.twist.twist.linear.y
+		#self.vel_z = odom_msg.twist.twist.angular.z
 		#print("x : " +str(self.x) +"\ny : " + str(self.y) )
 
 	def neighbours_callback(self, neighbours: Neighbours):
@@ -75,9 +76,21 @@ class BoidNode():
   
 
 	def calc_alignment(self) -> np.ndarray:
-		#TODO: calculate alignment force with respect to neighbours
-		#vraca np.ndarray, shape: (2,)
-		return np.array([1,1]) * 0 #promjenit
+		"""
+			Calculates alignment force with respect to neighbours
+
+			Returns:
+				np.ndarray of shape (2,): alignment force
+		"""
+		if len(self.neighbours_odoms) == 0: #if there isn't any neighbour
+			return np.zeros([2,])
+		
+		mean_velocity = np.array([[neighbour.twist.twist.linear.x, neighbour.twist.twist.linear.y] for neighbour in self.neighbours_odoms])
+		mean_velocity = np.mean(mean_velocity, axis=0)
+
+		F = np.array([mean_velocity[0] - self.vel_x, mean_velocity[1] * self.vel_y])
+
+		return F 
 
 	def calc_cohesion(self) -> np.ndarray:
 		"""
