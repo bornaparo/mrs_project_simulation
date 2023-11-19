@@ -18,7 +18,9 @@ PATHS = {
 class MigrationForceNode():
     def __init__(self):
         PUB_RATE = 10
-        self.close_radius = 0.4
+        self.close_radius = 0.6
+        self.shutoff_radius = 0.1
+        self.queue_size = 5
         path_param = rospy.get_param('~path_kind', default="simple_maze")
         self.path = PATHS[path_param]
         self.robots_point_index = 0 #to get point from path to which robots are currently travelling to
@@ -75,6 +77,9 @@ class MigrationForceNode():
         min_norm = 4
         while not rospy.is_shutdown():
             if None not in self.odoms: #ako je popunjena lista sa ne None vrijednostima tj popunjena je odom podacima
+                closeness = 0
+                updated = False
+
                 for i, (curr_odom, pub) in enumerate(zip(self.odoms, self.publisher_migration_force)):
                     msg = Point()
                     if self.robots_point_index == len(self.path): #came to the end point (goal), publish force 0
@@ -89,12 +94,19 @@ class MigrationForceNode():
                     #create migration force
                     mig_force = np.array([px - curr_x, py - curr_y])
                     if np.linalg.norm(mig_force) < self.close_radius: #came close to the point, get another point
+                        closeness += 1
+                    if np.linalg.norm(mig_force) < self.shutoff_radius:
+                        msg.x = 0
+                        msg.y = 0
+                        pub.publish(msg)
+                        continue
+                    if closeness > self.queue_size and not updated:
+                        updated = True
                         self.robots_point_index += 1
                         
                     if np.linalg.norm(mig_force) < min_norm and self.robots_point_index != len(self.path) - 1: #if norm is lower than minimum norm and if it is not the last point (because we want to slow down when approaching last point - required from assignment)
                         s = min_norm / np.linalg.norm(mig_force) #scaling factor to get desired norm
                         mig_force *= s
-
 
                     msg.x, msg.y = mig_force
                     pub.publish(msg)
