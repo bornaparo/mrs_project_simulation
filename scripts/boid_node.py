@@ -24,10 +24,10 @@ class BoidNode():
 		# self.radius = 0.4
 		self.migration_force = np.zeros((2,))
   
-		self.separation_factor = 1.5 #TODO: promjenit
-		self.alignment_factor = 1.2 #TODO: promjenit
-		self.cohesion_factor = 10*2 #adjust if needed #10/2*2*2
-		self.avoidance_factor = 2.5 #TODO: promjenit
+		self.separation_factor = 1.5
+		self.alignment_factor = 1.2
+		self.cohesion_factor = 10*2
+		self.avoidance_factor = 2.5
 		self.mass = 1
 
 		self.neighbours_odoms = []
@@ -78,8 +78,8 @@ class BoidNode():
 		
     
 		for i,distance in enumerate(euclidean_distances):
-				# Calculate separation forces according to neighbours positions(distances) and sum it up 
-				force +=  cordinate_difference[i] / (distance**2)
+			# Calculate separation forces according to neighbours positions(distances) and sum it up 
+			force +=  cordinate_difference[i] / (distance**2)
 
 
 		return force #shape: (2,)
@@ -120,7 +120,6 @@ class BoidNode():
 
 		#calculate force with respect to centroid
 		F = np.array([centroid[0] - self.x, centroid[1] - self.y])
-		#print(f"force borna = {F}")
 		return F #shape: (2,)
 	
 	def calc_avoidance(self) -> np.ndarray:
@@ -144,8 +143,8 @@ class BoidNode():
 		
     
 		for i,distance in enumerate(euclidean_distances):
-				# Calculate separation forces according to obstacles positions(distances) and sum it up 
-				force +=  cordinate_difference[i] / abs(distance**3)
+			# Calculate separation forces according to obstacles positions(distances) and sum it up 
+			force +=  cordinate_difference[i] / abs(distance**3)
 
 
 		return force / len(self.obstacles.points) #shape: (2,)

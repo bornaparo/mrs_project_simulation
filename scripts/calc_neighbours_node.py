@@ -16,7 +16,7 @@ class CalcNeighboursNode():
         PUB_RATE = 10
 
         #FOV kao kruzni isjecak
-        self.r = 1 #TODO: promjenit (ili ostavit)
+        self.r = 1
         
         alpha = 30
         self.theta1 = np.deg2rad(180 + alpha)
@@ -160,9 +160,7 @@ class CalcNeighboursNode():
                     for obst in self.obstacles.points:
                         d = np.sqrt((obst.x - curr_x)**2 + (obst.y - curr_y)**2)
                         if d <= self.r: #unutar kruga
-                            angle = np.arctan2(obst.y - curr_y, obst.x - curr_x) #u intervalu [-pi, pi]
-                            if not (angle > self.theta1 and angle < self.theta2): #ako nije u tom rasponu kuteva naci da je unutar FoV
-                                new_array.points.append(obst)
+                            new_array.points.append(obst)
 
                     nearest_obs[f"robot_{i}"] = new_array
 
